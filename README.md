@@ -1,93 +1,107 @@
-# STM32 IoT Environmental Sensing System
+# Epic Sunfarm Monitoring System
 
-An end-to-end embedded IoT system built on the STM32F401CCU6 (Black Pill) that monitors soil and atmospheric conditions and transmits sensor data wirelessly over LoRa to a Raspberry Pi 5 receiver.
+An industry-sponsored smart agriculture monitoring system built for real-world farm deployment. The system collects environmental, soil, and location data across multiple wireless sensor nodes and delivers live readings to a farmer's mobile app — powered entirely by solar energy.
 
-## Overview
+This is a 16-member cross-functional project spanning embedded hardware, embedded software, AI/ML, and mobile app development.
 
-This system reads data from four different sensors using three different communication protocols, packages it into a compact text packet, and transmits it over a 433 MHz LoRa link to a remote receiver — useful for agricultural and weather-monitoring applications where wired connections aren't practical.
+---
 
-## System Architecture
+## What it does
+
+Farmers currently have no affordable, real-time way to monitor their field conditions remotely. Epic Sunfarm solves this by deploying wireless sensor nodes across a farm that continuously measure:
+
+- Air temperature and humidity
+- Soil moisture, soil temperature, and soil electrical conductivity (EC)
+- Wind speed and wind direction
+- Precise GPS location of each node
+
+All data travels wirelessly to a central server node, which pushes it to a mobile app the farmer can check from anywhere. Because each node reports its GPS coordinates, the farmer's app can show a live map of the farm with real-time readings pinned at the exact location of each sensor node.
+
+---
+
+## System architecture
+
+The network consists of 4 nodes — 3 general sensor nodes and 1 server node.
+
+Each general node runs on an STM32F401CCU6 microcontroller, reads all sensors including GPS, and transmits data wirelessly over LoRa (433 MHz) to the server node. The server node aggregates data from all three field nodes and forwards it to the cloud backend, which feeds the farmer-facing mobile app.
+
+Every node is powered by a solar panel and rechargeable battery — no mains power required, making it deployable anywhere in a field.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    STM32F401CCU6 (Black Pill)            │
-│                                                           │
-│   USART1 (PA9/PA10) ──► MAX485 ──► ZTS-3000 Soil Sensor  │
-│   PA1                ──► DHT22 Temp/Humidity Sensor      │
-│   PA4 (ADC1_IN4)     ──► Wind Speed Sensor (analog)      │
-│   PA5 (ADC1_IN5)     ──► Wind Direction Sensor (analog)  │
-│   USART2 (PA2/PA3)   ──► LoRa E32-433T20D (TX)            │
-└───────────────────────────┬───────────────────────────────┘
-                             │ 433 MHz LoRa
-                             ▼
-┌─────────────────────────────────────────────────────────┐
-│              Raspberry Pi 5 (Receiver)                  │
-│                                                           │
-│   UART0 (GPIO14/15)  ◄── LoRa E32-433T20D (RX)            │
-│   Python script parses packet and displays live readings│
-└─────────────────────────────────────────────────────────┘
+[General Node 1] ──LoRa──┐
+[General Node 2] ──LoRa──┤──► [Server Node] ──► Cloud ──► Farmer's Phone App
+[General Node 3] ──LoRa──┘
+       ↑
+  Solar Panel + Battery
 ```
 
-## Hardware Used
+---
 
-| Component | Purpose | Interface |
+## Sensors on each general node
+
+| Sensor | What it measures | Protocol |
 |---|---|---|
-| STM32F401CCU6 (Black Pill) | Main microcontroller | — |
-| ZTS-3000 | Soil moisture, temperature, EC sensor | RS485 Modbus RTU via MAX485 |
-| DHT22 | Air temperature and humidity | Single-wire digital |
-| Wind speed sensor | Wind speed (analog voltage output) | ADC (12-bit) |
-| Wind direction sensor | Wind direction (analog voltage output) | ADC (12-bit) |
-| LoRa E32-433T20D | Long-range wireless transmission | UART (transparent mode) |
-| Raspberry Pi 5 | Remote data receiver and display | UART |
+| ZTS-3000 | Soil moisture, soil temperature, soil EC | RS485 Modbus RTU |
+| DHT22 | Air temperature, air humidity | Single-wire digital |
+| Anemometer | Wind speed | Analog (ADC) |
+| Wind vane | Wind direction | Analog (ADC) |
+| NEO-6M GPS | Precise latitude, longitude, altitude | UART (NMEA sentences) |
 
-## Key Technical Details
+---
 
-- **Clock configuration:** SYSCLK at 84 MHz (HSI → PLL /8 ×84 /2), ADC clock at 21 MHz (PCLK2/4)
-- **Auto baud detection:** Firmware automatically detects the ZTS-3000's configured baud rate (4800/9600/19200/2400) on boot
-- **Dual UART design:** USART1 dedicated to RS485 Modbus communication, USART2 dedicated to LoRa — fully decoupled so a LoRa transmission never interferes with sensor polling
-- **Graceful sensor failure handling:** If any sensor fails to respond, the packet still transmits with `ERR` markers for that field instead of dropping the whole reading
-- **Custom packet protocol:** Compact `$KEY:VAL,KEY:VAL...*` text format designed to be both human-readable for debugging and easy to parse programmatically
+## My contribution
 
-## Sample Output (Raspberry Pi receiver)
+I was part of the embedded hardware domain and handled the full hardware bring-up for the sensor nodes:
+
+- Sensor selection, wiring, and physical integration for all five sensor types
+- RS485 Modbus RTU communication with the ZTS-3000 soil sensor via MAX485 transceiver
+- DHT22 interfacing with microsecond-level timing using DWT cycle counter on STM32
+- ADC configuration for analog wind speed and direction sensors (PA4, PA5 on ADC1)
+- NEO-6M GPS module integration over UART — NMEA sentence parsing to extract latitude, longitude, and altitude
+- LoRa E32-433T20D wireless transmission setup and packet protocol design
+- STM32F401CCU6 clock configuration (84 MHz via HSI PLL) and peripheral initialisation using CubeMX
+- Hardware debugging — traced and resolved RS485 DE/RE control issues, LoRa mode pin faults, and baud rate mismatches
+- Also wrote the embedded C firmware for sensor reading, packet formatting, and transmission
+- Built the Python receiver script on Raspberry Pi 5 for live terminal display of all sensor data
+
+---
+
+## Tech stack
+
+**Microcontroller:** STM32F401CCU6 (Black Pill)  
+**Firmware:** Embedded C using STM32 HAL  
+**Wireless:** LoRa E32-433T20D at 433 MHz  
+**Protocols:** RS485 Modbus RTU, UART, ADC, NMEA  
+**GPS:** u-blox NEO-6M  
+**Power:** Solar panel + LiPo battery  
+**Receiver side:** Raspberry Pi 5, Python 3, pyserial  
+**Team size:** 16 members across 4 domains  
+**Type:** Industry sponsored project  
+
+---
+
+## Packet format
+
+Each node transmits a compact readable packet every 5 seconds:
 
 ```
-┌────────────────────────────────────────────────────┐
-│  [2026-05-23 17:08:45]  Packet #1
-├────────────────────────────────────────────────────┤
-│  Air  (DHT22)
-│    Temperature  :  34.2 °C
-│    Humidity     :  63.2 %RH
-├────────────────────────────────────────────────────┤
-│  Soil (ZTS-3000)
-│    Moisture     :  45.1 %
-│    Temperature  :  28.3 °C
-│    EC           :  [████████░░░░░░░░] 850 µS/cm
-│    Quality      :  Medium
-├────────────────────────────────────────────────────┤
-│  Wind (Anemometer + Vane)
-│    Speed        :  3.5 m/s   [LOW]
-│    Direction    :  180°   S
-└────────────────────────────────────────────────────┘
+$AT:34.2,AH:63.1,SM:45.2,ST:28.3,EC:850,SQ:Medium,WS:3.5,WL:LOW,WD:180,WC:S,LAT:18.5204,LON:73.8567,ALT:559.2*
 ```
 
-## Repository Structure
+Fields: Air Temperature, Air Humidity, Soil Moisture, Soil Temperature, EC value, EC quality, Wind Speed, Wind Level, Wind Direction degrees, Wind Compass direction, GPS Latitude, GPS Longitude, GPS Altitude.
+
+---
+
+## Repository contents
 
 ```
-firmware/           STM32 main.c and DHT22 driver
-raspberry-pi/        Python receiver script for the Pi
-docs/                 Wiring diagrams and system photos
+firmware/          STM32 embedded C source files (main.c, dht22 driver)
+raspberry-pi/      Python receiver script for live data display
+docs/              Wiring diagrams and hardware photos
 ```
 
-## Skills Demonstrated
+---
 
-- Embedded C firmware development (STM32 HAL)
-- RS485 / Modbus RTU protocol implementation
-- ADC configuration and analog sensor signal conditioning
-- UART-based wireless communication (LoRa)
-- Multi-peripheral system integration on a single MCU
-- Python serial communication and data parsing (Raspberry Pi)
-- Hardware debugging using systematic fault isolation
+## Project context
 
-## Author
-
-Aniket Dakore — B.Tech Electronics & Telecommunication Engineering, VIT Pune
+Epic Sunfarm is an industry-sponsored project at Vishwakarma Institute of Technology, Pune. The goal is to deliver a production-ready agricultural monitoring solution — not a lab prototype — with solar autonomy, multi-node wireless networking, GPS-tagged sensor data, and a real farmer-facing mobile application.
