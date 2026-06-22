@@ -90,4 +90,4 @@ docs/                 Wiring diagrams and system photos
 
 ## Author
 
-Aditya Dalvi — B.Tech Electronics & Telecommunication Engineering, VIT Pune
+Aniket Dakore — B.Tech Electronics & Telecommunication Engineering, VIT Pune
